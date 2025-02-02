@@ -1,0 +1,248 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[margin=1in]{geometry}
+\usepackage{fancyhdr}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{xcolor}
+% Header and Footer
+\pagestyle{fancy}
+\lhead{\textbf{CS425: Computer Networks}}
+\chead{}
+\rhead{A1: Chat Server with Groups and Private Messages}
+\lfoot{Instructor: \textbf{Adithya Vadapalli}}
+\cfoot{}
+\rfoot{TA Incharge: \textbf{Rohit and Naman}}
+
+% Define custom colors
+\definecolor{keywordcolor}{rgb}{0.0, 0.0, 0.7} % Blue for keywords
+\definecolor{stringcolor}{rgb}{0.58, 0.0, 0.82} % Purple for strings
+\definecolor{commentcolor}{rgb}{0.0, 0.5, 0.0} % Green for comments
+\definecolor{numbercolor}{rgb}{0.5, 0.5, 0.5} % Gray for numbers
+\definecolor{backgroundcolor}{rgb}{0.95, 0.95, 0.95} % Light gray for background
+
+% Set up listings style
+\lstset{
+    language=C++,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{keywordcolor}\bfseries,
+    stringstyle=\color{stringcolor},
+    commentstyle=\color{commentcolor}\itshape,
+    numberstyle=\tiny\color{numbercolor},
+    backgroundcolor=\color{backgroundcolor},
+    breaklines=true,
+    showstringspaces=false,
+    numbers=left,
+    frame=single,
+    captionpos=b,
+    xleftmargin=10pt,
+    xrightmargin=10pt,
+    rulecolor=\color{black},
+}
+
+\begin{document}
+
+% Title Page
+\begin{titlepage}
+    \centering
+    \vspace{2cm}
+    %\includegraphics[width=0.3\textwidth]{iitk_logo.png} % Placeholder for IITK Logo
+    \vspace{1cm}
+
+    {\Huge \textbf{Assignment 1}}\\[1cm]
+    {\Large \textbf{Chat Server with Groups and Private Messages}}\\[2cm]
+
+    \textbf{Course: CS425: Computer Networks}\\[0.5cm]
+    \textbf{Instructor:  Adithya Vadapalli }\\[0.5cm]
+    \textbf{TAs Incharge: Rohit Kumar and Naman Baranwal}\\[3cm]
+
+    \vfill
+    \textbf{Submission Deadline: 05.02.2025, EOD}\\[0.5cm]
+    \vfill
+
+\end{titlepage}
+
+\section*{Objective}
+Develop a multi-threaded chat server that supports private messages, group communication, and user authentication. This assignment will help you understand socket programming, multithreading, and data synchronization in networked systems.
+
+\section*{Instructions}
+\begin{enumerate}
+\item Clone the repository from: \url{https://github.com/privacy-iitk/cs425-2025.git} 
+\item Go to the \texttt{Homeworks/A1} directory as \texttt{cd cs425-2025/Homeworks/A1}
+\item You will see the client code, a users.txt file, and a \texttt{Makefile} there. 
+\item This assignment can be solved in a group of at most three students.
+\item Use only Piazza to ask for help in the assignment. 
+\item Your goal is to write the server code so that \texttt{make} compiles both the server and client codes (Note that the Makefile already has the compilation command for the server code!)
+\end{enumerate}
+
+
+\section*{Requirements}
+
+\subsection*{1. Basic Server Functionality}
+
+\begin{enumerate}
+ \item Implement a TCP-based server that listens on a specific port (e.g., \texttt{12345}).
+ \item  The server should accept multiple concurrent client connections.
+ \item  Maintain a list of connected clients with their usernames.
+\end{enumerate}
+
+
+\subsection*{2. User Authentication}
+\begin{enumerate}
+ \item  Create a \texttt{users.txt} file to store usernames and passwords in the format \texttt{username:password}.
+ \item  On client connection, prompt the user to enter their username and password.
+ \item  Disconnect clients that fail authentication.
+ \end{enumerate}
+
+\subsection*{3. Messaging Features}
+We should allow clients to send messages to:
+    \begin{enumerate}
+        \item \textbf{All users:} Broadcast messages to all connected clients using \texttt{/broadcast <message>} 
+        \item \textbf{Specific users:} Send private messages to a specific user using \texttt{/msg <username> <message>}
+        \item \textbf{Groups:} Send messages to all group members using \texttt{/group\_msg <group\_name> <message>}
+    \end{enumerate}
+
+\subsection*{4. Group Management}
+You should implement the following group commands:
+    \begin{enumerate}
+        \item \texttt{/create\_group <group\_name>}: Create a new group.
+        \item \texttt{/join\_group <group\_name>}: Join an existing group.
+        \item \texttt{/leave\_group <group\_name>}: Leave a group.
+    \end{enumerate}
+Furthermore, you should maintain a mapping of group names to their members.
+\begin{enumerate}
+\item Any client should be able to create a group. 
+\item The server will be maintaining the groups.
+\end{enumerate}
+
+
+
+\subsection*{5. Commands}
+In summary the following commands have to be supported. 
+\begin{enumerate}
+    \item \texttt{/msg <username> <message>}: Send a private message to a user.
+    \item \texttt{/broadcast <message>}: Send a message to all users.
+    \item \texttt{/join\_group <group\_name>}: A user joins a group that has been created.
+    \item \texttt{/group\_msg <group\_name> <message>}: Send a message to a group.
+    \item \texttt{/leave\_group <group\_name>}: A user leaves a group.
+\end{enumerate}
+
+\subsection*{Hints}
+
+\begin{enumerate}
+\item If there is a shared resource accessed by multiple threads, we use \lstinline|std::lock_guard<std::mutex>| to ensure thread-safe access. This prevents data races when multiple threads (handling different clients) try to read or modify the shared resource simultaneously. The lock guarantees that only one thread can access clients at a time, ensuring consistency and avoiding undefined behavior.
+
+\item  Server can maintain the list of users (everyone who is allowed to login), the clients (users who have logged in) and the groups created as follows. 
+ \begin{lstlisting}[language=C++]
+ std::unordered_map<int, std::string> clients; // Client socket -> username
+std::unordered_map<std::string, std::string> users; // Username -> password
+std::unordered_map<std::string, std::unordered_set<int>> groups; // Group -> client sockets
+\end{lstlisting}
+\item We have given you some example code to see how multithreading can be done. You can access it as: \texttt{cd cs425-2025/classroom-code/Threading}.
+\item To implement the functionalities, the server modifies these maps. For instance, when a client joins a group, the server adds that client socket to the unordered set corresponding to the group name. 
+\item You should think about commands that the clients will run as messages to the server. For instance, when a client creates a group cs425 by running the command $\texttt{/create\_group cs425}$. This should be equivalent to sending the string  $\texttt{/create\_group cs425}$ to create a group at this end. Similarly, for other commands like $\texttt{/join cs425}$, the string ``$\texttt{/join cs425}$'' is sent to the server by the client. Then, the server parses the string and executes the actions that the string corresponds to. 
+\item Parsing a string from the server side can be done as follows:
+\begin{lstlisting} 
+ if (message.starts_with("/group_msg")) {
+    size_t space1 = message.find(' ');
+    size_t space2 = message.find(' ', space1 + 1);
+    if (space1 != std::string::npos && space2 != std::string::npos) {
+        std::string group_name = message.substr(space1 + 1, space2 - space1 - 1);
+        std::string group_msg = message.substr(space2 + 1);
+        group_message(client_socket, group_name, group_msg);
+    }
+}
+\end{lstlisting}
+\end{enumerate}
+
+
+\section*{Deliverables}
+\begin{enumerate}
+    \item Source code for the chat server.
+    \item \texttt{users.txt} file with test usernames and passwords.
+    \item A \texttt{README.md} file with instructions to compile and run the server. Your \texttt{README.md} should be really elaborate in describing your code. Therefore, you should also document not just how to run the code but also how your code works!
+    \item Put all the above things, including the client code, in a zip file.
+    \item Submission instructions will be given a week. 
+\end{enumerate}
+
+\section*{Expected Code Output}
+In one of the terminals, you should run the server.  Each of the clients would run different terminals. Some possible outputs could be like the below.
+
+
+\begin{lstlisting}[language=bash, caption={Running the server executable in one Terminal}]
+$ .\server_grp
+\end{lstlisting}
+
+
+\begin{lstlisting}[language=bash, caption={Running one of the clients in the second Terminal}]
+$ .\client_grp
+Connected to the server.
+Enter username: alice
+Enter password: password123
+Welcome to the chat server!
+bob has joined the chat.
+frank has joined the chat.
+/msg bob I will start a group CS425
+[bob]:  alice great, I will join
+/create_group CS425
+Group CS425 created.
+/group_msg CS425 Hi, Welcome to CS425
+[Group CS425]: I have joined too
+[Group CS425]: Started A1?
+\end{lstlisting}
+
+\begin{lstlisting}[language=bash, caption={Running another client in the third Terminal}]
+$ .\client_grp
+Connected to the server.
+Enter username: bob
+Enter password: qwerty456
+Welcome to the chat server!
+frank has joined the chat.
+[alice]: bob I will start a group CS425
+/msg alice great, I will join                           
+/join_group CS425
+You joined the group CS425.
+[Group CS425]: Hi, Welcome to CS425
+[Group CS425]: I have joined too
+/group_msg CS425 Started A1?
+\end{lstlisting}
+
+\begin{lstlisting}[language=bash, caption={Running another client in the fourth Terminal; Note that frank does not receive the group message till he joins the group}]
+$ .\client_grp
+Connected to the server.
+Enter username: frank
+Enter password: letmein
+Welcome to the chat server!
+/join_group CS425
+You joined the group CS425.
+/join_group CS425           
+You joined the group CS425.
+/group_msg CS425 I have joined too
+[Group CS425]: Started A1?
+\end{lstlisting}
+
+\begin{lstlisting}[language=bash, caption={Running another client in the fifth Terminal}]
+$ .\client_grp
+Connected to the server.
+Enter username: david
+Enter password: qwerty
+Authentication failed.
+\end{lstlisting}
+
+\section*{Grading Rubric}
+\begin{itemize}
+    \item \textbf{Correctness (60\%)}: The server works as expected and supports all required features.
+    \item \textbf{Code Quality (15\%)}: Clean, modular, and well-documented code.
+    \item \textbf{Documentation (25\%)}: Clear instructions and explanation in the README.
+\end{itemize}
+
+\vfill
+\noindent \textbf{Note:} For any clarifications, post a message on Piazza. Ensure all submissions are made before the deadline. Late submissions will incur a penalty as per the course policy.
+%- GUI messup
+%- We don't support sendign messages to offline users
+%- Is server threading
+%- Client Threading
+%- Does server save the messages or immediately send them
+%- presenence of immemory structure that keeps track of socketfd etc. 
+\end{document}
