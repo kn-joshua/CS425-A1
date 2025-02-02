@@ -1,4 +1,4 @@
-# Multi-threaded Chat Server (CS425)
+# Multi-threaded Chat Server (CS425 - A1 - 2025)
 
 ## Overview
 This project implements a multi-threaded chat server that supports multiple concurrent client connections, user authentication, broadcast messaging, private messaging, and group functionalities. 
