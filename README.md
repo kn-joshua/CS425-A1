@@ -97,3 +97,110 @@ Below is a brief explanation of the key functions in `server_grp.cpp`:
    2. **Load Credentials**: Reads `users.txt` and stores username-password pairs in a map.
    3. **Accept Loop**: Continuously accepts incoming client connections and spawns a new thread (`std::thread`) that calls `handle_client` for each connected client.
    4. **Thread Management**: Keeps track of all client-handler threads; each thread remains active until its client disconnects.
+
+# Additional Documentation
+
+---
+
+## 3. Assignment Features Implemented / Not Implemented
+
+- **Implemented Features:**
+  - **Basic Server Functionality:**  
+    The server uses TCP sockets to listen on port `12345` and accepts multiple concurrent client connections.
+  - **User Authentication:**  
+    Clients are prompted for a username and password, and authentication is performed against the contents of `users.txt`.
+  - **Messaging Features:**  
+    Supports broadcast messages (`/broadcast`), private messages (`/msg`), and group messages (`/group_msg`).
+  - **Group Management:**  
+    Clients can create (`/create_group`), join (`/join_group`), and leave (`/leave_group`) groups. The server maintains a mapping of group names to their members.
+  - **Multithreading:**  
+    Each client connection is handled in a separate thread, ensuring simultaneous interactions.
+
+- **Not Implemented / Future Enhancements:**
+  - **Advanced Error Recovery:**  
+    More robust error handling and reconnection strategies could be implemented.
+  - **Message History & Persistence:**  
+    Currently, messages are not stored; adding persistent logging or message history is a potential enhancement.
+  - **Enhanced Security:**  
+    Encryption for messages and secure storage of passwords (e.g., hashing) is not implemented.
+
+---
+
+## 4. Design Decisions
+
+- **Thread per Connection:**  
+  A new thread is created for each client connection. This design simplifies the handling of concurrent clients since each thread independently processes its client's commands. Using threads (with `std::thread`) allows for a straightforward implementation of concurrent I/O without the complexity of managing processes.
+  
+- **Synchronization Mechanisms:**  
+  Shared data structures (like the client list and group membership maps) are protected using `std::mutex` and `std::lock_guard` to avoid race conditions. This ensures that simultaneous modifications by multiple threads do not lead to undefined behavior.
+  
+- **Socket Programming:**  
+  The server uses standard POSIX sockets to implement the TCP server. The use of a loop in `main()` to accept connections and spawn threads provides a simple yet effective model for managing multiple client connections.
+
+---
+
+## 5. Implementation Overview
+
+- **High-Level Functionality:**
+  - **Server Initialization:**  
+    The server sets up a TCP socket, binds it to `127.0.0.1:12345`, and listens for incoming connections.
+  - **User Authentication:**  
+    Upon connection, the server requests a username and password and verifies these credentials against a map populated from `users.txt`.
+  - **Message Handling:**  
+    The server supports various commands for broadcasting, sending private messages, and managing groups.
+  - **Multithreading:**  
+    Each new connection spawns a thread which runs the `handle_client` function, responsible for processing messages and commands.
+
+## 6. Testing
+
+**Correctness Testing:**
+Multiple clients were connected (using client_grp) in separate terminal windows. Each client was tested for:
+- Successful authentication.
+- Correct message delivery for broadcast, private, and group messaging.
+- Proper handling of group creation, joining, and leaving.
+
+**Stress Testing:**
+The server was tested with several simultaneous client connections to ensure that multithreading and synchronization handled concurrent requests without data races or crashes.
+
+## 7. Restrictions in the Server
+
+**Maximum Clients:**
+There is no explicit hard-coded limit on the number of clients, but system resources (e.g., available file descriptors and CPU) may impose practical limits.
+
+**Maximum Groups:**
+There is no strict limit on the number of groups. However, each new group is stored in memory, so available memory is the practical constraint.
+
+**Group Members:**
+Similarly, there is no hard-coded limit on the number of members per group, with the system's memory being the main restriction.
+
+**Message Size:**
+The buffer size for a message is defined as 1024 bytes. Messages larger than this may be truncated or require additional handling.
+
+## 8. Challenges Faced
+
+**Concurrency Issues:**
+Handling multiple client connections concurrently introduced potential race conditions. This was addressed by using mutexes (std::mutex) and lock guards (std::lock_guard).
+
+**Command Parsing:**
+Ensuring that commands (especially those with multiple parameters) are parsed correctly was challenging. Edge cases such as missing parameters or extra spaces had to be handled carefully.
+
+**Testing Multithreaded Code:**
+Stress testing the server with many simultaneous connections required careful coordination to simulate real-world usage without causing resource exhaustion.
+
+## 9. Contribution of Each Member
+
+**Joshua (me):**
+- Role: Testing and Documentation
+- Contribution: 30%
+- Performed comprehensive testing on the server and client implementations.
+- Prepared and built the complete documentation (this README).
+
+**Aravind S and Sumay Avi:**
+- Role: Implementation
+- Contribution: 70% (equal to both)
+- Handled the overall design and coding of both the server (server_grp.cpp) and client (client_grp.cpp).
+- Managed multithreading and synchronization aspects of the assignment.
+
+## 10. Declaration
+
+I hereby declare that this assignment is entirely my own work and does not contain any plagiarized content. All external sources have been properly acknowledged.  
