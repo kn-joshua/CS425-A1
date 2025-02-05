@@ -1,3 +1,11 @@
+# Team Members
+
+### 1. Aravind Seshadri - 210180
+
+### 2. Kapu Nirmal Joshua - 210489
+
+### 3. Sumay Avi - 211071
+
 # Multi-threaded Chat Server (CS425 - A1 - 2025)
 
 ## 1. How to Clone and Run the Code
