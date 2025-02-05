@@ -13,15 +13,36 @@
 #include <fstream>
 #include <algorithm>
 #define BUFFER_SIZE 1024
-
+// Mutex used for safely printing to console
 std::mutex cout_mutex;
+
+// Mutex used for protecting shared data structures (connected_clients, username_to_socket, etc.)
 std::mutex clients_mutex;
+
+// Vector to store the socket descriptors of all connected clients
 std::vector<int> connected_clients;
+
+// Maps a username to its socket descriptor for quick lookup
 std::unordered_map<std::string, int> username_to_socket;
+
+// Maps a group name to a set of usernames belonging to that group
 std::unordered_map<std::string, std::unordered_set<std::string>> group_members;
+
+
 std::unordered_set<std::string> active_users;
+
+// Mutex used to protect operations on the group_members data structure
 std::mutex groups_mutex;
+
+
 std::mutex users_mutex;
+
+/**
+ * @brief Sends a message to all connected clients except the sender.
+ * 
+ * @param message The text message to be sent
+ * @param sender_socket The socket descriptor of the sender (excluded from receiving)
+ */
 void broadcast_message(const std::string &message, int sender_socket) {
     std::lock_guard<std::mutex> lock(clients_mutex);
     for (int client_socket : connected_clients) {
@@ -31,6 +52,13 @@ void broadcast_message(const std::string &message, int sender_socket) {
     }
 }
 
+/**
+ * @brief Sends a private message to a specific user.
+ * 
+ * @param sender_username The username of the sender
+ * @param recipient_username The username of the recipient
+ * @param message The text message to be sent
+ */
 void private_message(const std::string &sender_username, const std::string &recipient_username, const std::string &message) {
     std::lock_guard<std::mutex> lock(clients_mutex);
     if (username_to_socket.find(recipient_username) != username_to_socket.end()) {
@@ -44,6 +72,13 @@ void private_message(const std::string &sender_username, const std::string &reci
     }
 }
 
+/**
+ * @brief Sends a message to all members of a specified group (except the sender).
+ * 
+ * @param sender_username The username of the sender
+ * @param group_name Name of the group to which the message is sent
+ * @param message The text message to be sent
+ */
 void send_group_message(const std::string &sender_username, const std::string &group_name, const std::string &message) {
     std::lock_guard<std::mutex> lock(clients_mutex);
     if (group_members.find(group_name) != group_members.end()) {
@@ -60,24 +95,35 @@ void send_group_message(const std::string &sender_username, const std::string &g
     }
 }
 
+/**
+ * @brief Handles interaction with an individual client.
+ *        Performs user authentication and processes commands.
+ * 
+ * @param client Socket descriptor for the connected client
+ * @param users A map of valid username-password pairs for authentication
+ */
 void handle_client(int client, const std::unordered_map<std::string, std::string> &users) {
     char buffer[BUFFER_SIZE];
+    // Prompt for username
     const char *auth = "Enter Username\n";
     send(client, auth, strlen(auth), 0);
-
     memset(buffer, 0, BUFFER_SIZE);
     recv(client, buffer, BUFFER_SIZE, 0);
     std::string received_username(buffer);
+    // Remove trailing newline characters if any
     received_username.erase(std::remove(received_username.begin(), received_username.end(), '\n'), received_username.end());
-
+    
+    // Prompt for password
     auth = "Enter Password\n";
     send(client, auth, strlen(auth), 0);
 
     memset(buffer, 0, BUFFER_SIZE);
     recv(client, buffer, BUFFER_SIZE, 0);
     std::string received_password(buffer);
+    // Remove trailing newline characters if any
     received_password.erase(std::remove(received_password.begin(), received_password.end(), '\n'), received_password.end());
 
+    // Check authentication
     const char *message;
     auto it = users.find(received_username);
     if (it != users.end() && it->second == received_password) {
@@ -96,33 +142,42 @@ void handle_client(int client, const std::unordered_map<std::string, std::string
     } else {
         message = "Authentication failed\n";
         send(client, message, strlen(message), 0);
-        close(client);
+        close(client); // Disconnect if authentication fails
         return;
     }
 
     {
+        // Print to server console that the client has authenticated
         std::lock_guard<std::mutex> lock(cout_mutex);
         std::cout << "Client " << received_username << " authenticated successfully." << std::endl;
     }
 
     {
+        // Add client to the list of connected clients and record their username
         std::lock_guard<std::mutex> lock(clients_mutex);
         connected_clients.push_back(client);
         username_to_socket[received_username] = client;
     }
+    
     {
+        // Broadcast that this user has joined the chat
         std::string joining_chat = received_username + " has joined the chat.\n";
         broadcast_message(joining_chat, client);  // Exclude the sender from receiving the message
     }
+    
+    // Communication loop to receive commands/messages from the client
     while (true) {
         memset(buffer, 0, BUFFER_SIZE);
         int bytes_received = recv(client, buffer, BUFFER_SIZE, 0);
+        
+        // If the client disconnects or an error occurs
         if (bytes_received <= 0) {
             std::lock_guard<std::mutex> lock(cout_mutex);
             std::cout << "Client " << received_username << " disconnected." << std::endl;
             std::string exit_message = received_username + " has exited the chat.";
             broadcast_message(exit_message, client);
                 {
+                    // Clean up client references
                     std::lock_guard<std::mutex> lock(clients_mutex);
                     connected_clients.erase(std::remove(connected_clients.begin(), connected_clients.end(), client), connected_clients.end());
                     username_to_socket.erase(received_username);
@@ -136,9 +191,11 @@ void handle_client(int client, const std::unordered_map<std::string, std::string
             break;
         }
 
+        // Convert the client message to a std::string and remove trailing newline
         std::string client_message(buffer);
         client_message.erase(std::remove(client_message.begin(), client_message.end(), '\n'), client_message.end());
         std::lock_guard<std::mutex> lock(cout_mutex);
+        // Print the received message in the server console
         std::cout << "Message from " << received_username << ": " << client_message << std::endl;
 
         // Handle broadcast command
@@ -259,6 +316,11 @@ void handle_client(int client, const std::unordered_map<std::string, std::string
 
 }
 
+/**
+ * @brief Main function to set up the server, load user credentials, and accept client connections.
+ * 
+ * @return int Exit status
+ */
 int main() {
     int server_socket;
     sockaddr_in server_address{};
