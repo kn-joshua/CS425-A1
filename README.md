@@ -189,7 +189,7 @@ Stress testing the server with many simultaneous connections required careful co
 
 ## 9. Contribution of Each Member
 
-**Joshua (me):**
+**Kapu Nirmal Joshua:**
 - Role: Testing and Documentation
 - Contribution: 30%
 - Performed comprehensive testing on the server and client implementations.
