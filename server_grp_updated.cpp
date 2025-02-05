@@ -61,11 +61,13 @@ void broadcast_message(const std::string &message, int sender_socket) {
  */
 void private_message(const std::string &sender_username, const std::string &recipient_username, const std::string &message) {
     std::lock_guard<std::mutex> lock(clients_mutex);
+    // Check if recipient is currently connected
     if (username_to_socket.find(recipient_username) != username_to_socket.end()) {
         int recipient_socket = username_to_socket[recipient_username];
         std::string formatted_message = "Private message from " + sender_username + ": " + message;
         send(recipient_socket, formatted_message.c_str(), formatted_message.size(), 0);
     } else {
+        // If recipient is not connected, inform the sender
         int sender_socket = username_to_socket[sender_username];
         std::string error_msg = "Error: User '" + recipient_username + "' not found or not connected.\n";
         send(sender_socket, error_msg.c_str(), error_msg.size(), 0);
@@ -81,15 +83,18 @@ void private_message(const std::string &sender_username, const std::string &reci
  */
 void send_group_message(const std::string &sender_username, const std::string &group_name, const std::string &message) {
     std::lock_guard<std::mutex> lock(clients_mutex);
+    // Check if the group exists
     if (group_members.find(group_name) != group_members.end()) {
         std::string formatted_message = "Group message from " + sender_username + " in " + group_name + ": " + message;
         for (const auto &member : group_members[group_name]) {
             if (member != sender_username && username_to_socket.find(member) != username_to_socket.end()) {
                 int member_socket = username_to_socket[member];
+                // Send the message to all members in the group (except the sender)
                 send(member_socket, formatted_message.c_str(), formatted_message.size(), 0);
             }
         }
     } else {
+        // Group not found, log this in the server console
         std::lock_guard<std::mutex> lock(cout_mutex);
         std::cout << "Group " << group_name << " does not exist." << std::endl;
     }
